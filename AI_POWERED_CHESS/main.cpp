@@ -14,7 +14,7 @@ using namespace std ;
 //defining bitboard datatype
 #define U64 unsigned long long
 
-//board chess
+//board chess squares
 enum {
     a8, b8, c8, d8, e8, f8, g8, h8,
     a7, b7, c7, d7, e7, f7, g7, h7,
@@ -23,7 +23,7 @@ enum {
     a4, b4, c4, d4, e4, f4, g4, h4,
     a3, b3, c3, d3, e3, f3, g3, h3,
     a2, b2, c2, d2, e2, f2, g2, h2,
-    a1, b1, c1, d1, e1, f1, g1, h1
+    a1, b1, c1, d1, e1, f1, g1, h1,no_square
 };
 
 const char *square_to_coordinate[64] = {
@@ -36,10 +36,49 @@ const char *square_to_coordinate[64] = {
    "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 };
+
+//ASCII pieces
+
+char  ascii_pieces[13] = "PNBRQKpnbrqk";
+
+//unicode pieces
+
+string unicode_pieces[12] = {"♙", "♘", "♗", "♖", "♕", "♔",
+                                  "♟︎", "♞", "♝", "♜", "♛", "♚"};
+
+//encode pieces  - uppercase(white) , lowercasse(black)
+enum { P ,N ,B ,R ,Q ,K ,p ,n ,b ,r ,q ,k} ;
+
 //sides to move (colors) (white = 0, black = 1)
-enum { white , black };
+enum { white , black , both };  
+
 //biahop and rook
 enum{ rook , bishop };
+
+
+// castling bits binary encoding
+/*
+
+    bin  dec
+    
+   0001    1  white king can castle to the king side
+   0010    2  white king can castle to the queen side
+   0100    4  black king can castle to the king side
+   1000    8  black king can castle to the queen side
+
+   examples
+
+   1111       both sides an castle both directions
+   1001       black king => queen side
+              white king => king side
+
+*/
+
+enum { wk = 1 , wq = 2 , bk = 4 , bq = 8 };
+
+
+
+
 
 //for future
 /*
@@ -56,6 +95,124 @@ enum{ rook , bishop };
 
 */
 
+
+/*** * * *  * * * * * * * * * * * * * ** * **\
+ ==================================
+ 
+            CHESS BOARD
+ 
+ ==================================
+\ * ** * * ** ** * * ** * ** * ** ** * * ** */
+/*
+WHITE PIECES
+
+
+Pawns                  Knights              Bishops
+
+8  0 0 0 0 0 0 0 0    8  0 0 0 0 0 0 0 0    8  0 0 0 0 0 0 0 0
+7  0 0 0 0 0 0 0 0    7  0 0 0 0 0 0 0 0    7  0 0 0 0 0 0 0 0
+6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0
+5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0
+4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0
+3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0
+2  1 1 1 1 1 1 1 1    2  0 0 0 0 0 0 0 0    2  0 0 0 0 0 0 0 0
+1  0 0 0 0 0 0 0 0    1  0 1 0 0 0 0 1 0    1  0 0 1 0 0 1 0 0
+
+a b c d e f g h       a b c d e f g h       a b c d e f g h
+
+
+Rooks                 Queens                 King
+
+8  0 0 0 0 0 0 0 0    8  0 0 0 0 0 0 0 0    8  0 0 0 0 0 0 0 0
+7  0 0 0 0 0 0 0 0    7  0 0 0 0 0 0 0 0    7  0 0 0 0 0 0 0 0
+6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0
+5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0
+4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0
+3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0
+2  0 0 0 0 0 0 0 0    2  0 0 0 0 0 0 0 0    2  0 0 0 0 0 0 0 0
+1  1 0 0 0 0 0 0 1    1  0 0 0 1 0 0 0 0    1  0 0 0 0 1 0 0 0
+
+a b c d e f g h       a b c d e f g h       a b c d e f g h
+
+
+              BLACK PIECES
+
+
+Pawns                  Knights              Bishops
+
+8  0 0 0 0 0 0 0 0    8  0 1 0 0 0 0 1 0    8  0 0 1 0 0 1 0 0
+7  1 1 1 1 1 1 1 1    7  0 0 0 0 0 0 0 0    7  0 0 0 0 0 0 0 0
+6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0
+5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0
+4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0
+3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0
+2  0 0 0 0 0 0 0 0    2  0 0 0 0 0 0 0 0    2  0 0 0 0 0 0 0 0
+1  0 0 0 0 0 0 0 0    1  0 0 0 0 0 0 0 0    1  0 0 0 0 0 0 0 0
+
+a b c d e f g h       a b c d e f g h       a b c d e f g h
+
+
+Rooks                 Queens                 King
+
+8  1 0 0 0 0 0 0 1    8  0 0 0 1 0 0 0 0    8  0 0 0 0 1 0 0 0
+7  0 0 0 0 0 0 0 0    7  0 0 0 0 0 0 0 0    7  0 0 0 0 0 0 0 0
+6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0
+5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0
+4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0
+3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0
+2  0 0 0 0 0 0 0 0    2  0 0 0 0 0 0 0 0    2  0 0 0 0 0 0 0 0
+1  0 0 0 0 0 0 0 0    1  0 0 0 0 0 0 0 0    1  0 0 0 0 0 0 0 0
+
+a b c d e f g h       a b c d e f g h       a b c d e f g h
+
+
+
+               OCCUPANCIES
+
+
+White occupancy       Black occupancy       All occupancies
+
+8  0 0 0 0 0 0 0 0    8  1 1 1 1 1 1 1 1    8  1 1 1 1 1 1 1 1
+7  0 0 0 0 0 0 0 0    7  1 1 1 1 1 1 1 1    7  1 1 1 1 1 1 1 1
+6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0    6  0 0 0 0 0 0 0 0
+5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0    5  0 0 0 0 0 0 0 0
+4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0    4  0 0 0 0 0 0 0 0
+3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0    3  0 0 0 0 0 0 0 0
+2  1 1 1 1 1 1 1 1    2  0 0 0 0 0 0 0 0    2  1 1 1 1 1 1 1 1
+1  1 1 1 1 1 1 1 1    1  0 0 0 0 0 0 0 0    1  1 1 1 1 1 1 1 1
+
+
+
+              ALL TOGETHER
+
+          8  ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜
+          7  ♟︎ ♟︎ ♟︎ ♟︎ ♟︎ ♟︎ ♟︎ ♟︎
+          6  . . . . . . . .
+          5  . . . . . . . .
+          4  . . . . . . . .
+          3  . . . . . . . .
+          2  ♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙
+          1  ♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖
+
+             a b c d e f g h
+ */
+
+//define bitboard
+U64 bitboards[12];
+
+//define occupancy bitboard
+
+U64 occupancies[3];
+
+//side to move
+int side = -1 ;
+
+//enpassant square
+int enpassant = no_square;
+
+//castling rights variable
+int castle ;
+
 /*** * * *  * * * * * * * * * * * * * ** * **\
  ==================================
  
@@ -64,9 +221,9 @@ enum{ rook , bishop };
  ==================================
 \ * ** * * ** ** * * ** * ** * ** ** * * ** */
 //set/get.pop macro
-#define get_bit(bitboard,square) (bitboard & (1ULL)<<square)
-#define set_bit(bitboard,square) (bitboard |= (1ULL)<<square)
-#define pop_bit(bitboard,square) (get_bit(bitboard,square) ? bitboard ^= (1ULL) << square:0)
+#define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
+#define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
+#define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
 
 
 // function to count number of bits in the U64
@@ -416,6 +573,17 @@ U64 knight_attacks[64];
 // king attacks table [square]
 U64 king_attacks[64];
 
+// bishop attack masks
+U64 bishop_masks[64];
+
+// rook attack masks
+U64 rook_masks[64];
+
+// bishop attacks table [square][occupancies]
+U64 bishop_attacks[64][512];
+
+// rook attacks rable [square][occupancies]
+U64 rook_attacks[64][4096];
 
 // generate pawn attacks
 U64 mask_pawn_attacks(int side, int square)
@@ -770,6 +938,82 @@ void init_magic_numbers()
         bishop_magic_numbers[square] = find_magic_number(square, bishop_relevant_bits[square], bishop);
 }
 
+// init slider piece's attack tables
+void init_sliders_attacks(int bishop)
+{
+    // loop over 64 board squares
+    for (int square = 0; square < 64; square++)
+    {
+        // init bishop & rook masks
+        bishop_masks[square] = mask_bishop_attacks(square);
+        rook_masks[square] = mask_rook_attacks(square);
+        
+        // init current mask
+        U64 attack_mask = bishop ? bishop_masks[square] : rook_masks[square];
+        
+        // init relevant occupancy bit count
+        int relevant_bits_count = count_bits(attack_mask);
+        
+        // init occupancy indicies
+        int occupancy_indicies = (1 << relevant_bits_count);
+        
+        // loop over occupancy indicies
+        for (int index = 0; index < occupancy_indicies; index++)
+        {
+            // bishop
+            if (bishop)
+            {
+                // init current occupancy variation
+                U64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+                
+                // init magic index
+                U64 magic_index = (occupancy * bishop_magic_numbers[square]) >> (64 - bishop_relevant_bits[square]);  // int to u64
+                
+                // init bishop attacks
+                bishop_attacks[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
+            }
+            
+            // rook
+            else
+            {
+                // init current occupancy variation
+                U64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+                
+                // init magic index
+                 U64 magic_index = (occupancy * rook_magic_numbers[square]) >> (64 - rook_relevant_bits[square]);  //int to U64
+                
+                // init bishop attacks
+                rook_attacks[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
+            
+            }
+        }
+    }
+}
+
+// get bishop attacks
+static inline U64 get_bishop_attacks(int square, U64 occupancy)
+{
+    // get bishop attacks assuming current board occupancy
+    occupancy &= bishop_masks[square];
+    occupancy *= bishop_magic_numbers[square];
+    occupancy >>= 64 - bishop_relevant_bits[square];
+    
+    // return bishop attacks
+    return bishop_attacks[square][occupancy];
+}
+
+// get rook attacks
+static inline U64 get_rook_attacks(int square, U64 occupancy)
+{
+    // get bishop attacks assuming current board occupancy
+    occupancy &= rook_masks[square];
+    occupancy *= rook_magic_numbers[square];
+    occupancy >>= 64 - rook_relevant_bits[square];
+    
+    // return rook attacks
+    return rook_attacks[square][occupancy];
+}
+
 
 /*** * * *  * * * * * * * * * * * * * ** * **\
  ==================================
@@ -784,6 +1028,11 @@ void init_all()
 {
     // init leaper pieces attacks
     init_leapers_attacks();
+    
+    // init slider pieces attacks
+      init_sliders_attacks(bishop);
+      init_sliders_attacks(rook);
+    
     
     // init magic numbers
     //init_magic_numbers();
@@ -814,6 +1063,11 @@ int main() {
     // init leaper pieces attacks
     init_all();
     //print_bitboard((U64)get_random_U32_number());
+    
+    for(int i=0;i<12;i++){
+        cout<<unicode_pieces[i]<<" ";
+    }cout<<endl;
+    
     return 0;
 }
 

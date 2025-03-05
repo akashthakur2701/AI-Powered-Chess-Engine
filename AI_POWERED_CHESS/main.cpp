@@ -4,12 +4,20 @@
 //
 //  Created by AKASH THAKUR on 02/03/25.
 //
-#include <iostream>
+#include<iostream>
 #include<string.h>
+#include<cstring>
 //#include<GL/glew.h>
 //#include<SFML/Window.hpp>
 //#include<SFML/Graphics.hpp>
 using namespace std ;
+
+// FEN dedug positions
+#define empty_board "8/8/8/8/8/8/8/8 w - - "
+#define start_position "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
+#define tricky_position "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
+#define killer_position "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1"
+#define cmk_position "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 "
 
 //defining bitboard datatype
 #define U64 unsigned long long
@@ -23,10 +31,10 @@ enum {
     a4, b4, c4, d4, e4, f4, g4, h4,
     a3, b3, c3, d3, e3, f3, g3, h3,
     a2, b2, c2, d2, e2, f2, g2, h2,
-    a1, b1, c1, d1, e1, f1, g1, h1,no_square
+    a1, b1, c1, d1, e1, f1, g1, h1,no_sq
 };
 
-const char *square_to_coordinate[64] = {
+const char *square_to_coordinates[64] = {
    "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
    "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
@@ -77,6 +85,21 @@ enum{ rook , bishop };
 enum { wk = 1 , wq = 2 , bk = 4 , bq = 8 };
 
 
+// convert ASCII character pieces to encoded constants
+int char_pieces[] = {
+    ['P'] = P,
+    ['N'] = N,
+    ['B'] = B,
+    ['R'] = R,
+    ['Q'] = Q,
+    ['K'] = K,
+    ['p'] = p,
+    ['n'] = n,
+    ['b'] = b,
+    ['r'] = r,
+    ['q'] = q,
+    ['k'] = k
+};
 
 
 
@@ -205,10 +228,10 @@ U64 bitboards[12];
 U64 occupancies[3];
 
 //side to move
-int side = -1 ;
+int side  ;
 
 //enpassant square
-int enpassant = no_square;
+int enpassant = no_sq;
 
 //castling rights variable
 int castle ;
@@ -245,7 +268,7 @@ static inline int count_bits(U64 bitboard){
     return count;
 }
 
-// fucntion to find the least significant bit position
+// fucntion to find the least significant bit position (Brian Kernighan's way)
 
 static inline int get_ls1b_index(U64 bitboard){
     //make sure the bitboard is not 0
@@ -257,6 +280,15 @@ static inline int get_ls1b_index(U64 bitboard){
     else
         return -1 ;
 }
+/*** * * *  * * * * * * * * * * * * * ** * **\
+ ==================================
+ 
+      INPUT and OUTPUT
+ 
+ ==================================
+\ * ** * * ** ** * * ** * ** * ** ** * * ** */
+
+
 //function to print bitboard
 void print_bitboard(U64 bitboard){
     cout<<endl;
@@ -275,6 +307,191 @@ void print_bitboard(U64 bitboard){
     //print the bitboard in decimal form
     printf("   Bitboard: %llud \n",bitboard);
     
+}
+
+// Function to print board
+
+void print_board(){
+    //print offsets
+    
+    //loop over rank
+    
+    for(int rank = 0;rank<8;rank++){
+         //loop over files
+        
+        for(int file = 0;file < 8;file++){
+            //init ssquare
+            int square = rank*8 + file ;
+            //print rank no
+            if(!file) printf("  %d ",8-rank);
+            
+            //define piece variable
+            int piece = -1 ;
+            // loop over all piece bitboards
+                      for (int bb_piece = P; bb_piece <= k; bb_piece++)
+                      {
+                          if (get_bit(bitboards[bb_piece], square))
+                              piece = bb_piece;
+                      }
+                      
+                      // print different piece set depending on OS
+                      #ifdef WIN64
+                          printf(" %c", (piece == -1) ? '.' : ascii_pieces[piece]);
+                      #else
+                         cout<<" "<<((piece == -1) ? "." : unicode_pieces[piece]);
+                      #endif
+        }
+        cout<<endl;
+    }
+    
+       // print board files
+       printf("\n     a b c d e f g h\n\n");
+       
+       // print side to move
+       printf("     Side:     %s\n", !side ? "white" : "black");
+       
+       // print enpassant square
+       printf("     Enpassant:   %s\n", (enpassant != no_sq) ? square_to_coordinates[enpassant] : "no");
+       
+       // print castling rights
+       printf("     Castling:  %c%c%c%c\n\n", (castle & wk) ? 'K' : '-',
+                                              (castle & wq) ? 'Q' : '-',
+                                              (castle & bk) ? 'k' : '-',
+                                              (castle & bq) ? 'q' : '-');
+    
+    
+}
+
+
+
+// parse FEN string
+void parse_fen(char *fen)
+{
+    // reset board position (bitboards)
+    memset(bitboards, 0ULL, sizeof(bitboards));
+    
+    // reset occupancies (bitboards)
+    memset(occupancies, 0ULL, sizeof(occupancies));
+    
+    // reset game state variables
+    side = 0;
+    enpassant = no_sq;
+    castle = 0;
+    
+    // loop over board ranks
+    for (int rank = 0; rank < 8; rank++)
+    {
+        for (int file = 0; file < 8; file++)
+        {
+            // init current square
+            int square = rank * 8 + file;
+            
+            // match ascii pieces within FEN string
+            if ((*fen >= 'a' && *fen <= 'z') || (*fen >= 'A' && *fen <= 'Z'))
+            {
+                // init piece type
+                int piece = char_pieces[*fen];
+                
+                // set piece on corresponding bitboard
+                set_bit(bitboards[piece], square);
+                
+                // increment pointer to FEN string
+                *fen++;
+            }
+            
+            // match empty square numbers within FEN string
+            if (*fen >= '0' && *fen <= '9')
+            {
+                // init offset (convert char 0 to int 0)
+                int offset = *fen - '0';
+                
+                // define piece variable
+                int piece = -1;
+                
+                // loop over all piece bitboards
+                for (int bb_piece = P; bb_piece <= k; bb_piece++)
+                {
+                    // if there is a piece on current square
+                    if (get_bit(bitboards[bb_piece], square))
+                        // get piece code
+                        piece = bb_piece;
+                }
+                
+                // on empty current square
+                if (piece == -1)
+                    // decrement file
+                    file--;
+                
+                // adjust file counter
+                file += offset;
+                
+                // increment pointer to FEN string
+                *fen++;
+            }
+            
+            // match rank separator
+            if (*fen == '/')
+                // increment pointer to FEN string
+                *fen++;
+        }
+    }
+    
+    // got to parsing side to move (increment pointer to FEN string)
+    *fen++;
+    
+    // parse side to move
+    (*fen == 'w') ? (side = white) : (side = black);
+    
+    // go to parsing castling rights
+    fen += 2;
+    
+    // parse castling rights
+    while (*fen != ' ')
+    {
+        switch (*fen)
+        {
+            case 'K': castle |= wk; break;
+            case 'Q': castle |= wq; break;
+            case 'k': castle |= bk; break;
+            case 'q': castle |= bq; break;
+            case '-': break;
+        }
+
+        // increment pointer to FEN string
+        *fen++;
+    }
+    
+    // got to parsing enpassant square (increment pointer to FEN string)
+    *fen++;
+    
+    // parse enpassant square
+    if (*fen != '-')
+    {
+        // parse enpassant file & rank
+        int file = fen[0] - 'a';
+        int rank = 8 - (fen[1] - '0');
+        
+        // init enpassant square
+        enpassant = rank * 8 + file;
+    }
+    
+    // no enpassant square
+    else
+        enpassant = no_sq;
+    
+    // loop over white pieces bitboards
+    for (int piece = P; piece <= K; piece++)
+        // populate white occupancy bitboard
+        occupancies[white] |= bitboards[piece];
+    
+    // loop over black pieces bitboards
+    for (int piece = p; piece <= k; piece++)
+        // populate white occupancy bitboard
+        occupancies[black] |= bitboards[piece];
+    
+    // init all occupancies
+    occupancies[both] |= occupancies[white];
+    occupancies[both] |= occupancies[black];
 }
 
 /*** * * *  * * * * * * * * * * * * * ** * **\
@@ -1014,6 +1231,37 @@ static inline U64 get_rook_attacks(int square, U64 occupancy)
     return rook_attacks[square][occupancy];
 }
 
+// get queen attacks
+static inline U64 get_queen_attacks(int square, U64 occupancy)
+{
+    // init result attacks bitboard
+    U64 queen_attacks = 0ULL;
+    
+    // init bishop occupancies
+    U64 bishop_occupancy = occupancy;
+    
+    // init rook occupancies
+    U64 rook_occupancy = occupancy;
+    
+    // get bishop attacks assuming current board occupancy
+    bishop_occupancy &= bishop_masks[square];
+    bishop_occupancy *= bishop_magic_numbers[square];
+    bishop_occupancy >>= 64 - bishop_relevant_bits[square];
+    
+    // get bishop attacks
+    queen_attacks = bishop_attacks[square][bishop_occupancy];
+    
+    // get rook attacks assuming current board occupancy
+    rook_occupancy &= rook_masks[square];
+    rook_occupancy *= rook_magic_numbers[square];
+    rook_occupancy >>= 64 - rook_relevant_bits[square];
+    
+    // get rook attacks
+    queen_attacks |= rook_attacks[square][rook_occupancy];
+    
+    // return queen attacks
+    return queen_attacks;
+}
 
 /*** * * *  * * * * * * * * * * * * * ** * **\
  ==================================
@@ -1064,11 +1312,7 @@ int main() {
     init_all();
     //print_bitboard((U64)get_random_U32_number());
     
-    for(int i=0;i<12;i++){
-        cout<<unicode_pieces[i]<<" ";
-    }cout<<endl;
-    
+ 
     return 0;
 }
-
 
